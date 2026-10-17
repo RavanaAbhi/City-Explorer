@@ -1,9 +1,35 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.android)
+    // 1. Add Detekt Static Analysis Plugin
+    id("io.gitlab.arturbosch.detekt") version "1.23.8"
+}
+
+// 2. Configure Global Code Governance for All Sub-modules
+subprojects {
+    apply(plugin = "io.gitlab.arturbosch.detekt")
+
+    detekt {
+        buildUponDefaultConfig = true
+        allRules = false
+        config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+    }
+
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            freeCompilerArgs.addAll(
+                "-P",
+                "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=${project.layout.buildDirectory.get().asFile}/compose_metrics",
+                "-P",
+                "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=${project.layout.buildDirectory.get().asFile}/compose_metrics"
+            )
+        }
+    }
 }
 
 android {
@@ -18,6 +44,17 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // 1. Read key from local.properties dynamically
+        val properties = Properties().apply {
+            val localPropertiesFile = rootProject.file("local.properties")
+            if (localPropertiesFile.exists()) {
+                localPropertiesFile.inputStream().use { load(it) }
+            }
+        }
+
+        val razorpayKey = properties.getProperty("razorpay.api.key") ?: "\"MOCK_KEY\""
+        val API_Key = properties.getProperty("api.api.key") ?: "\"MOCK_KEY\""
     }
 
     buildTypes {
@@ -37,6 +74,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures {
+        buildConfig = true // Ensure BuildConfig generation is enabled
         compose = true
     }
 }

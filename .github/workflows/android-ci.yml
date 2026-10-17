@@ -1,0 +1,28 @@
+name: Enterprise Quality Gate
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          cache: gradle
+
+      # In CI, we create a dummy local.properties so compilation doesn't fail
+      - name: Initialize Mock Environment
+        run: echo "razorpay.api.key=CI_MOCK_KEY" > local.properties
+
+      - name: Run Quality Gate Tasks
+        run: ./gradlew detekt testDebugUnitTest assembleDebug --no-daemon
